@@ -1,6 +1,7 @@
 package com.anonLove.dto.response.post;
 
 import com.anonLove.domain.post.Post;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -11,6 +12,8 @@ import java.time.LocalDateTime;
 public class PostListResponse {
     private Long id;
     private String title;
+
+    @JsonProperty("created_at")
     private LocalDateTime createdAt;
 
     public static PostListResponse from(Post post) {
