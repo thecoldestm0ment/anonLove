@@ -9,7 +9,7 @@ import com.anonLove.dto.response.post.PostListResponse;
 import com.anonLove.security.CustomUserDetails;
 import com.anonLove.service.comment.CommentService;
 import com.anonLove.service.post.PostService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
