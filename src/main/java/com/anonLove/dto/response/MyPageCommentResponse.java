@@ -16,7 +16,6 @@ public class MyPageCommentResponse {
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
 
-    @JsonProperty("post_info")
     private PostInfo post;
 
     @Getter
