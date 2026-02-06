@@ -1,6 +1,7 @@
 package com.anonLove.dto.response;
 
 import com.anonLove.domain.comment.Comment;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -11,7 +12,10 @@ import java.time.LocalDateTime;
 public class MyPageCommentResponse {
     private Long id;
     private String content;
+
+    @JsonProperty("created_at")
     private LocalDateTime createdAt;
+
     private PostInfo post;
 
     @Getter

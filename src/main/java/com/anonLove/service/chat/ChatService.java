@@ -17,7 +17,9 @@ import com.anonLove.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,8 +82,8 @@ public class ChatService {
         return new CreateChatRoomResponse(savedRoom.getId());
     }
     // 채팅 메시지 조회
-    public Page<ChatMessageResponse> getChatMessages(Long roomId, Long lastMessageId,
-                                                     Long userId, Pageable pageable) {
+    public List<ChatMessageResponse> getChatMessages(Long roomId, Long lastMessageId,
+                                                     int size, Long userId) {
         ChatRoom chatRoom = chatRoomRepository.findById(roomId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
@@ -90,14 +92,19 @@ public class ChatService {
             throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
         }
 
-        Page<ChatMessage> messages;
+        Pageable pageable = PageRequest.of(0, size, Sort.by("id").descending());
+
+        Page<ChatMessage> messagePage;
         if (lastMessageId != null) {
-            messages = chatMessageRepository.findRecentMessages(roomId, lastMessageId, pageable);
+            messagePage = chatMessageRepository.findRecentMessages(roomId, lastMessageId, pageable);
         } else {
-            messages = chatMessageRepository.findByChatRoomIdOrderByCreatedAtDesc(roomId, pageable);
+            messagePage = chatMessageRepository.findByChatRoomIdOrderByCreatedAtDesc(roomId, pageable);
         }
 
-        return messages.map(ChatMessageResponse::from);
+        // Page의 content를 List로 변환
+        return messagePage.getContent().stream()
+                .map(ChatMessageResponse::from)
+                .collect(Collectors.toList());
     }
     // 사용자가 참여 중인 모든 채팅방 목록 조회
     public List<ChatRoomListResponse> getChatRoomList(Long userId) {

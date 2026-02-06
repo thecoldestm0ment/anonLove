@@ -9,8 +9,10 @@ import com.anonLove.dto.response.post.PostListResponse;
 import com.anonLove.security.CustomUserDetails;
 import com.anonLove.service.comment.CommentService;
 import com.anonLove.service.post.PostService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -37,6 +39,7 @@ public class PostController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         Page<PostListResponse> response = postService.getPosts(categoryId, userDetails.getUserId(), pageable);
+
         return ResponseEntity.ok(response);
     }
 
@@ -46,6 +49,7 @@ public class PostController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         PostDetailResponse response = postService.getPostDetail(postId, userDetails.getUserId());
+
         return ResponseEntity.ok(response);
     }
 

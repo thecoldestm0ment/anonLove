@@ -44,14 +44,14 @@ public class ChatController {
     }
 
     @GetMapping("/rooms/{roomId}/messages")
-    public ResponseEntity<Page<ChatMessageResponse>> getChatMessages(
+    public ResponseEntity<List<ChatMessageResponse>> getChatMessages(
             @PathVariable Long roomId,
             @RequestParam(required = false) Long lastMessageId,
-            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(defaultValue = "50") int size,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        Page<ChatMessageResponse> response = chatService.getChatMessages(
-                roomId, lastMessageId, userDetails.getUserId(), pageable);
+        List<ChatMessageResponse> response = chatService.getChatMessages(
+                roomId, lastMessageId, size, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 }
