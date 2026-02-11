@@ -23,6 +23,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -81,6 +82,7 @@ public class ChatService {
 
         return new CreateChatRoomResponse(savedRoom.getId());
     }
+
     // 채팅 메시지 조회
     public List<ChatMessageResponse> getChatMessages(Long roomId, Long lastMessageId,
                                                      int size, Long userId) {
@@ -101,11 +103,16 @@ public class ChatService {
             messagePage = chatMessageRepository.findByChatRoomIdOrderByCreatedAtDesc(roomId, pageable);
         }
 
-        // Page의 content를 List로 변환
-        return messagePage.getContent().stream()
+        // List로 변환
+        List<ChatMessageResponse> responses = messagePage.getContent().stream()
                 .map(ChatMessageResponse::from)
                 .collect(Collectors.toList());
+
+        Collections.reverse(responses);
+
+        return responses;
     }
+
     // 사용자가 참여 중인 모든 채팅방 목록 조회
     public List<ChatRoomListResponse> getChatRoomList(Long userId) {
         List<ChatRoom> chatRooms = chatRoomRepository.findByParticipant(userId);
@@ -131,6 +138,7 @@ public class ChatService {
                 })
                 .collect(Collectors.toList());
     }
+
     // 채팅 메시지 읽음 처리
     @Transactional
     public void markMessagesAsRead(Long roomId, Long userId) {
@@ -143,6 +151,7 @@ public class ChatService {
         chatMessageRepository.markMessagesAsRead(roomId, userId);
         log.info("Messages marked as read: roomId={}, userId={}", roomId, userId);
     }
+
     // 채팅 메시지 저장
     @Transactional
     public ChatMessageResponse saveMessage(Long roomId, Long userId, SendMessageRequest request) {
