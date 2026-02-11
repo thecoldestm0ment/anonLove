@@ -2,11 +2,9 @@ package com.anonLove.controller;
 
 import com.anonLove.dto.request.chat.SendMessageRequest;
 import com.anonLove.dto.response.chat.ChatMessageResponse;
-import com.anonLove.repository.UserRepository;
 import com.anonLove.service.chat.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -20,23 +18,21 @@ import java.security.Principal;
 public class WebSocketChatController {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final UserRepository userRepository;
-    private ChatService chatService;
+    private final ChatService chatService; // [수정1] final 붙여서 주입받게 함!
 
-    @MessageMapping("/chat/{roomId}")
-    public void sendMessage(
-            @DestinationVariable Long roomId,
-            @Payload SendMessageRequest request,
-            Principal principal) {
+    // [수정2] 프론트엔드가 보내는 주소("/chat.send")로 변경
+    @MessageMapping("/chat.send")
+    public void sendMessage(@Payload SendMessageRequest request, Principal principal) {
 
         Long userId = Long.parseLong(principal.getName());
+        Long roomId = request.getRoomId();
 
-        // DB 작업 및 비즈니스 로직은 Service에서 처리 (Transactional 보장)
+        log.info("Received message: roomId={}, senderId={}", roomId, userId);
+
+        // DB 저장
         ChatMessageResponse response = chatService.saveMessage(roomId, userId, request);
+        messagingTemplate.convertAndSend("/topic/chat.room." + roomId, response);
 
-        // 채팅방 참여자들에게 메시지 전송
-        messagingTemplate.convertAndSend("/queue/chat/" + roomId, response);
-
-        log.info("Message sent and broadcasted: roomId={}, senderId={}", roomId, userId);
+        log.info("Message sent to subscriber: /topic/chat.room.{}", roomId);
     }
 }

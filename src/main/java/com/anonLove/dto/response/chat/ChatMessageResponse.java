@@ -13,6 +13,9 @@ import java.time.LocalDateTime;
 public class ChatMessageResponse {
     private Long id;
 
+    @JsonProperty("room_id")
+    private Long roomId;
+
     @JsonProperty("sender_id")
     private Long senderId;
 
@@ -33,6 +36,7 @@ public class ChatMessageResponse {
     public static ChatMessageResponse from(ChatMessage message) {
         return ChatMessageResponse.builder()
                 .id(message.getId())
+                .roomId(message.getChatRoom().getId())
                 .senderId(message.getSender().getId())
                 .messageType(message.getMessageType())
                 .content(message.getContent())
