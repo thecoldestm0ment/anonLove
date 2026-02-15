@@ -1,4 +1,5 @@
 package com.anonLove.service.auth;
+
 import com.anonLove.domain.user.User;
 import com.anonLove.dto.request.auth.LoginRequest;
 import com.anonLove.dto.request.auth.SignupRequest;
@@ -44,6 +45,7 @@ public class AuthService {
 
         return UserResponse.from(user);
     }
+
     // 이메일 인증 코드 전송
     @Transactional
     public void sendVerificationEmail(String email) {
@@ -62,6 +64,7 @@ public class AuthService {
         emailService.sendOtp(email, otp);
         log.info("OTP sent to: {}", email);
     }
+
     // 이메일 인증 코드 검증
     public void verifyOtp(String email, String code) {
         String key = OTP_PREFIX + email;
@@ -115,6 +118,7 @@ public class AuthService {
 
         log.info("User registered: {}", request.getEmail());
     }
+
     // 로그인 (이메일로 사용자 찾고 비밀번호 검증 > 토큰 생성)
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
@@ -128,8 +132,9 @@ public class AuthService {
         String refreshToken = tokenService.createRefreshToken(user.getId());
 
         log.info("User logged in: {}", user.getEmail());
-        return new LoginResponse(accessToken, refreshToken);
+        return new LoginResponse(user.getId(), accessToken, refreshToken);
     }
+
     // 토큰 재발급
     public TokenResponse refreshToken(String refreshToken) {
         if (!tokenProvider.validateToken(refreshToken)) {
@@ -147,6 +152,7 @@ public class AuthService {
 
         return new TokenResponse(newAccessToken, newRefreshToken);
     }
+
     // 로그아웃 (리프레시 토큰 삭제)
     public void logout(Long userId) {
         tokenService.deleteRefreshToken(userId);
