@@ -17,6 +17,9 @@ public class UpdatePostRequest {
     @NotBlank(message = "Content is required")
     private String content;
 
+    @JsonProperty("category_id")
+    private Integer categoryId;
+
     @JsonProperty("visibility_type")
     private VisibilityType visibilityType;
 

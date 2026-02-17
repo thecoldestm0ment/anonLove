@@ -9,6 +9,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "chat_rooms")
@@ -21,11 +23,11 @@ public class ChatRoom extends BaseTimeEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
+    @JoinColumn(name = "post_id")
     private Post post;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "comment_id", unique = true)
+    @JoinColumn(name = "comment_id")
     private Comment comment;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,6 +37,15 @@ public class ChatRoom extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "receiver_id", nullable = false)
     private User receiver;
+
+    @Column(name = "initiator_left")
+    private boolean initiatorLeft;
+
+    @Column(name = "receiver_left")
+    private boolean receiverLeft;
+
+    @OneToMany(mappedBy = "chatRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatMessage> chatMessages = new ArrayList<>();
 
     @Builder
     public ChatRoom(Post post, Comment comment, User initiator, User receiver) {
@@ -46,5 +57,25 @@ public class ChatRoom extends BaseTimeEntity {
 
     public boolean isParticipant(Long userId) {
         return initiator.getId().equals(userId) || receiver.getId().equals(userId);
+    }
+
+    public void leave(Long userId) {
+        if (initiator.getId().equals(userId)) {
+            this.initiatorLeft = true;
+        } else if (receiver.getId().equals(userId)) {
+            this.receiverLeft = true;
+        }
+    }
+
+    public boolean isBothLeft() {
+        return initiatorLeft && receiverLeft;
+    }
+
+    public void clearPost() {
+        this.post = null;
+    }
+
+    public void clearComment() {
+        this.comment = null;
     }
 }

@@ -1,5 +1,7 @@
 package com.anonLove.domain.post;
 
+import com.anonLove.domain.chat.ChatRoom;
+import com.anonLove.domain.comment.Comment;
 import com.anonLove.domain.common.BaseTimeEntity;
 import com.anonLove.domain.user.Gender;
 import com.anonLove.domain.user.User;
@@ -8,6 +10,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "posts")
@@ -41,9 +45,15 @@ public class Post extends BaseTimeEntity {
     @Column(name = "target_gender")
     private TargetGender targetGender;
 
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "post")
+    private List<ChatRoom> chatRooms = new ArrayList<>();
+
     @Builder
     public Post(User user, Category category, String title, String content,
-                VisibilityType visibilityType, TargetGender targetGender) {
+            VisibilityType visibilityType, TargetGender targetGender) {
         this.user = user;
         this.category = category;
         this.title = title;
@@ -52,8 +62,9 @@ public class Post extends BaseTimeEntity {
         this.targetGender = targetGender != null ? targetGender : TargetGender.ALL;
     }
 
-    public void update(String title, String content,
-                       VisibilityType visibilityType, TargetGender targetGender) {
+    public void update(Category category, String title, String content,
+            VisibilityType visibilityType, TargetGender targetGender) {
+        this.category = category;
         this.title = title;
         this.content = content;
         this.visibilityType = visibilityType;

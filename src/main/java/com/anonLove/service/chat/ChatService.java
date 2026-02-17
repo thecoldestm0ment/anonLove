@@ -33,147 +33,173 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ChatService {
 
-    private final ChatRoomRepository chatRoomRepository;
-    private final ChatMessageRepository chatMessageRepository;
-    private final PostRepository postRepository;
-    private final CommentRepository commentRepository;
-    private final UserRepository userRepository;
+        private final ChatRoomRepository chatRoomRepository;
+        private final ChatMessageRepository chatMessageRepository;
+        private final PostRepository postRepository;
+        private final CommentRepository commentRepository;
+        private final UserRepository userRepository;
 
-    @Transactional
-    // 채팅방 생성
-    public CreateChatRoomResponse createChatRoom(CreateChatRoomRequest request, Long initiatorId) {
-        Post post = postRepository.findById(request.getPostId())
-                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
+        @Transactional
+        // 채팅방 생성
+        public CreateChatRoomResponse createChatRoom(CreateChatRoomRequest request, Long initiatorId) {
+                Post post = postRepository.findById(request.getPostId())
+                                .orElseThrow(() -> new CustomException(ErrorCode.POST_NOT_FOUND));
 
-        Comment comment = commentRepository.findById(request.getCommentId())
-                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
+                Comment comment = commentRepository.findById(request.getCommentId())
+                                .orElseThrow(() -> new CustomException(ErrorCode.COMMENT_NOT_FOUND));
 
-        // 게시글 작성자만 채팅 시작 가능
-        if (!post.isAuthor(initiatorId)) {
-            throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
+                // 게시글 작성자만 채팅 시작 가능
+                if (!post.isAuthor(initiatorId)) {
+                        throw new CustomException(ErrorCode.NOT_POST_AUTHOR);
+                }
+
+                User initiator = userRepository.findById(initiatorId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+                User receiver = userRepository.findById(request.getReceiverId())
+                                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+                // 중복 채팅방 확인
+                if (chatRoomRepository.existsByCommentId(request.getCommentId())) {
+                        ChatRoom existingRoom = chatRoomRepository
+                                        .findByCommentId(request.getCommentId())
+                                        .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+
+                        return new CreateChatRoomResponse(existingRoom.getId());
+                }
+
+                ChatRoom chatRoom = ChatRoom.builder()
+                                .post(post)
+                                .comment(comment)
+                                .initiator(initiator)
+                                .receiver(receiver)
+                                .build();
+
+                ChatRoom savedRoom = chatRoomRepository.save(chatRoom);
+
+                log.info("Chat room created: roomId={}, postId={}, commentId={}",
+                                savedRoom.getId(), request.getPostId(), request.getCommentId());
+
+                return new CreateChatRoomResponse(savedRoom.getId());
         }
 
-        User initiator = userRepository.findById(initiatorId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        // 채팅 메시지 조회
+        public List<ChatMessageResponse> getChatMessages(Long roomId, Long lastMessageId,
+                        int size, Long userId) {
+                ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
-        User receiver = userRepository.findById(request.getReceiverId())
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+                // 참여자 확인
+                if (!chatRoom.isParticipant(userId)) {
+                        throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+                }
 
-        // 중복 채팅방 확인
-        if (chatRoomRepository.existsByCommentId(request.getCommentId())) {
-            ChatRoom existingRoom = chatRoomRepository
-                    .findByCommentId(request.getCommentId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
+                Pageable pageable = PageRequest.of(0, size, Sort.by("id").descending());
 
-            return new CreateChatRoomResponse(existingRoom.getId());
+                Page<ChatMessage> messagePage;
+                if (lastMessageId != null) {
+                        messagePage = chatMessageRepository.findRecentMessages(roomId, lastMessageId, pageable);
+                } else {
+                        messagePage = chatMessageRepository.findByChatRoomIdOrderByCreatedAtDesc(roomId, pageable);
+                }
+
+                // List로 변환
+                List<ChatMessageResponse> responses = messagePage.getContent().stream()
+                                .map(ChatMessageResponse::from)
+                                .collect(Collectors.toList());
+
+                Collections.reverse(responses);
+
+                return responses;
         }
 
-        ChatRoom chatRoom = ChatRoom.builder()
-                .post(post)
-                .comment(comment)
-                .initiator(initiator)
-                .receiver(receiver)
-                .build();
+        // 사용자가 참여 중인 모든 채팅방 목록 조회
+        public List<ChatRoomListResponse> getChatRoomList(Long userId) {
+                List<ChatRoom> chatRooms = chatRoomRepository.findByParticipant(userId);
 
-        ChatRoom savedRoom = chatRoomRepository.save(chatRoom);
+                return chatRooms.stream()
+                                .map(room -> {
+                                        ChatMessage lastMessage = chatMessageRepository
+                                                        .findTopByChatRoomIdOrderByCreatedAtDesc(room.getId())
+                                                        .orElse(null);
 
-        log.info("Chat room created: roomId={}, postId={}, commentId={}",
-                savedRoom.getId(), request.getPostId(), request.getCommentId());
+                                        long unreadCount = chatMessageRepository.countUnreadMessages(room.getId(),
+                                                        userId);
 
-        return new CreateChatRoomResponse(savedRoom.getId());
-    }
+                                        ChatRoomListResponse.PostInfo postInfo = room.getPost() != null
+                                                        ? ChatRoomListResponse.PostInfo.builder()
+                                                                        .id(room.getPost().getId())
+                                                                        .title(room.getPost().getTitle())
+                                                                        .build()
+                                                        : null;
 
-    // 채팅 메시지 조회
-    public List<ChatMessageResponse> getChatMessages(Long roomId, Long lastMessageId,
-                                                     int size, Long userId) {
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
-
-        // 참여자 확인
-        if (!chatRoom.isParticipant(userId)) {
-            throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+                                        return ChatRoomListResponse.builder()
+                                                        .roomId(room.getId())
+                                                        .lastMessage(lastMessage != null ? lastMessage.getContent()
+                                                                        : null)
+                                                        .lastMessageAt(lastMessage != null ? lastMessage.getCreatedAt()
+                                                                        : room.getCreatedAt())
+                                                        .unreadCount(unreadCount)
+                                                        .postInfo(postInfo)
+                                                        .build();
+                                })
+                                .collect(Collectors.toList());
         }
 
-        Pageable pageable = PageRequest.of(0, size, Sort.by("id").descending());
+        // 채팅 메시지 읽음 처리
+        @Transactional
+        public void markMessagesAsRead(Long roomId, Long userId) {
+                ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
-        Page<ChatMessage> messagePage;
-        if (lastMessageId != null) {
-            messagePage = chatMessageRepository.findRecentMessages(roomId, lastMessageId, pageable);
-        } else {
-            messagePage = chatMessageRepository.findByChatRoomIdOrderByCreatedAtDesc(roomId, pageable);
+                if (!chatRoom.isParticipant(userId)) {
+                        throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+                }
+                chatMessageRepository.markMessagesAsRead(roomId, userId);
+                log.info("Messages marked as read: roomId={}, userId={}", roomId, userId);
         }
 
-        // List로 변환
-        List<ChatMessageResponse> responses = messagePage.getContent().stream()
-                .map(ChatMessageResponse::from)
-                .collect(Collectors.toList());
+        // 채팅 메시지 저장
+        @Transactional
+        public ChatMessageResponse saveMessage(Long roomId, Long userId, SendMessageRequest request) {
+                ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
-        Collections.reverse(responses);
+                if (!chatRoom.isParticipant(userId)) {
+                        throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+                }
 
-        return responses;
-    }
+                User sender = userRepository.findById(userId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-    // 사용자가 참여 중인 모든 채팅방 목록 조회
-    public List<ChatRoomListResponse> getChatRoomList(Long userId) {
-        List<ChatRoom> chatRooms = chatRoomRepository.findByParticipant(userId);
+                ChatMessage message = ChatMessage.builder()
+                                .chatRoom(chatRoom)
+                                .sender(sender)
+                                .messageType(MessageType.TEXT)
+                                .content(request.getContent())
+                                .build();
 
-        return chatRooms.stream()
-                .map(room -> {
-                    ChatMessage lastMessage = chatMessageRepository
-                            .findTopByChatRoomIdOrderByCreatedAtDesc(room.getId())
-                            .orElse(null);
+                ChatMessage savedMessage = chatMessageRepository.save(message);
 
-                    long unreadCount = chatMessageRepository.countUnreadMessages(room.getId(), userId);
-
-                    return ChatRoomListResponse.builder()
-                            .roomId(room.getId())
-                            .lastMessage(lastMessage != null ? lastMessage.getContent() : null)
-                            .lastMessageAt(lastMessage != null ? lastMessage.getCreatedAt() : room.getCreatedAt())
-                            .unreadCount(unreadCount)
-                            .postInfo(ChatRoomListResponse.PostInfo.builder()
-                                    .id(room.getPost().getId())
-                                    .title(room.getPost().getTitle())
-                                    .build())
-                            .build();
-                })
-                .collect(Collectors.toList());
-    }
-
-    // 채팅 메시지 읽음 처리
-    @Transactional
-    public void markMessagesAsRead(Long roomId, Long userId) {
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
-
-        if (!chatRoom.isParticipant(userId)) {
-            throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
-        }
-        chatMessageRepository.markMessagesAsRead(roomId, userId);
-        log.info("Messages marked as read: roomId={}, userId={}", roomId, userId);
-    }
-
-    // 채팅 메시지 저장
-    @Transactional
-    public ChatMessageResponse saveMessage(Long roomId, Long userId, SendMessageRequest request) {
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
-
-        if (!chatRoom.isParticipant(userId)) {
-            throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+                return ChatMessageResponse.from(savedMessage);
         }
 
-        User sender = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+        // 채팅방 나가기
+        @Transactional
+        public void leaveChatRoom(Long roomId, Long userId) {
+                ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+                                .orElseThrow(() -> new CustomException(ErrorCode.CHAT_ROOM_NOT_FOUND));
 
-        ChatMessage message = ChatMessage.builder()
-                .chatRoom(chatRoom)
-                .sender(sender)
-                .messageType(MessageType.TEXT)
-                .content(request.getContent())
-                .build();
+                if (!chatRoom.isParticipant(userId)) {
+                        throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+                }
 
-        ChatMessage savedMessage = chatMessageRepository.save(message);
+                chatRoom.leave(userId);
 
-        return ChatMessageResponse.from(savedMessage);
-    }
+                if (chatRoom.isBothLeft()) {
+                        chatRoomRepository.delete(chatRoom);
+                }
+
+                log.info("User left chat room: roomId={}, userId={}", roomId, userId);
+        }
 }

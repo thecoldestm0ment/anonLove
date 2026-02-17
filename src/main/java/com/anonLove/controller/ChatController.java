@@ -8,10 +8,6 @@ import com.anonLove.security.CustomUserDetails;
 import com.anonLove.service.chat.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,5 +49,14 @@ public class ChatController {
         List<ChatMessageResponse> response = chatService.getChatMessages(
                 roomId, lastMessageId, size, userDetails.getUserId());
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/rooms/{roomId}/leave")
+    public ResponseEntity<Void> leaveChatRoom(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        chatService.leaveChatRoom(roomId, userDetails.getUserId());
+        return ResponseEntity.ok().build();
     }
 }
