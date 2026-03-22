@@ -7,15 +7,20 @@ import com.anonLove.dto.response.chat.CreateChatRoomResponse;
 import com.anonLove.security.CustomUserDetails;
 import com.anonLove.service.chat.ChatService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@Validated
 @RequestMapping("/api/chats")
 @RequiredArgsConstructor
 public class ChatController {
@@ -42,12 +47,24 @@ public class ChatController {
     @GetMapping("/rooms/{roomId}/messages")
     public ResponseEntity<List<ChatMessageResponse>> getChatMessages(
             @PathVariable Long roomId,
-            @RequestParam(required = false) Long lastMessageId,
-            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) @Positive Long beforeMessageId,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(100) int size,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         List<ChatMessageResponse> response = chatService.getChatMessages(
-                roomId, lastMessageId, size, userDetails.getUserId());
+                roomId, beforeMessageId, size, userDetails.getUserId());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/rooms/{roomId}/messages/recent")
+    public ResponseEntity<List<ChatMessageResponse>> getRecentMessages(
+            @PathVariable Long roomId,
+            @RequestParam @Positive Long afterMessageId,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(100) int size,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        List<ChatMessageResponse> response = chatService.getRecentMessages(
+                roomId, afterMessageId, size, userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
 

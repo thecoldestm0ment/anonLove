@@ -13,7 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "chat_rooms")
+@Table(
+    name = "chat_rooms",
+    indexes = {
+        @Index(name = "idx_chat_room_initiator_left", columnList = "initiator_id,initiator_left"),
+        @Index(name = "idx_chat_room_receiver_left", columnList = "receiver_id,receiver_left")
+    }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ChatRoom extends BaseTimeEntity {

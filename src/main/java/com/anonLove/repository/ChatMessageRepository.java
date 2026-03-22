@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
 
     // 채팅방별 메시지 조회 (최신순)
-    Page<ChatMessage> findByChatRoomIdOrderByCreatedAtDesc(Long roomId, Pageable pageable);
+    Page<ChatMessage> findByChatRoomIdOrderByIdDesc(Long roomId, Pageable pageable);
 
     // lastMessageId 이전 메시지 조회
     @Query("SELECT m FROM ChatMessage m " +
@@ -26,13 +26,13 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     // lastMessageId 이후 메시지 조회
     @Query("SELECT m FROM ChatMessage m " +
             "WHERE m.chatRoom.id = :roomId AND m.id > :lastMessageId " +
-            "ORDER BY m.createdAt DESC")
-    Page<ChatMessage> findRecentMessages(@Param("roomId") Long roomId,
-                                         @Param("lastMessageId") Long lastMessageId,
-                                         Pageable pageable);
+            "ORDER BY m.id ASC")
+    Page<ChatMessage> findMessagesAfterId(@Param("roomId") Long roomId,
+                                          @Param("lastMessageId") Long lastMessageId,
+                                          Pageable pageable);
 
     // 채팅방의 마지막 메시지
-    Optional<ChatMessage> findTopByChatRoomIdOrderByCreatedAtDesc(Long roomId);
+    Optional<ChatMessage> findTopByChatRoomIdOrderByIdDesc(Long roomId);
 
     // 읽지 않은 메시지 개수
     @Query("SELECT COUNT(m) FROM ChatMessage m " +
