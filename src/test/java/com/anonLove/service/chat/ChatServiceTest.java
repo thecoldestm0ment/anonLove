@@ -28,6 +28,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,6 +76,7 @@ class ChatServiceTest {
         List<ChatMessageResponse> responses = chatService.getChatMessages(10L, null, 50, 1L);
 
         assertThat(responses).extracting(ChatMessageResponse::getId).containsExactly(2L, 3L);
+        verify(chatMessageRepository).markMessagesAsRead(10L, 1L);
     }
 
     @Test
@@ -88,6 +91,7 @@ class ChatServiceTest {
         List<ChatMessageResponse> responses = chatService.getChatMessages(10L, 6L, 20, 1L);
 
         assertThat(responses).extracting(ChatMessageResponse::getId).containsExactly(4L, 5L);
+        verify(chatMessageRepository, never()).markMessagesAsRead(10L, 1L);
     }
 
     @Test
@@ -121,6 +125,15 @@ class ChatServiceTest {
         List<ChatRoomListResponse> responses = chatService.getChatRoomList(1L);
 
         assertThat(responses).extracting(ChatRoomListResponse::getRoomId).containsExactly(12L, 11L);
+    }
+
+    @Test
+    void markMessagesAsReadCallsRepositoryForParticipant() {
+        when(chatRoomRepository.findById(10L)).thenReturn(Optional.of(room));
+
+        chatService.markMessagesAsRead(10L, 1L);
+
+        verify(chatMessageRepository).markMessagesAsRead(10L, 1L);
     }
 
     private User user(Long id, String email, String nickname) {

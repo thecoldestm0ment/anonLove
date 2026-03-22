@@ -86,6 +86,7 @@ public class ChatService {
     public List<ChatMessageResponse> getChatMessages(Long roomId, Long beforeMessageId,
             int size, Long userId) {
         validateChatParticipant(roomId, userId);
+        markMessagesAsReadOnRoomEnter(roomId, beforeMessageId, userId);
 
         Pageable pageable = PageRequest.of(0, size);
         Page<ChatMessage> messagePage = beforeMessageId != null
@@ -190,6 +191,13 @@ public class ChatService {
 
         if (!chatRoom.isParticipant(userId)) {
             throw new CustomException(ErrorCode.NOT_CHAT_PARTICIPANT);
+        }
+    }
+
+    private void markMessagesAsReadOnRoomEnter(Long roomId, Long beforeMessageId, Long userId) {
+        if (beforeMessageId == null) {
+            chatMessageRepository.markMessagesAsRead(roomId, userId);
+            log.info("Messages auto-marked as read on room enter: roomId={}, userId={}", roomId, userId);
         }
     }
 

@@ -68,6 +68,15 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/rooms/{roomId}/read")
+    public ResponseEntity<Void> markMessagesAsRead(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        chatService.markMessagesAsRead(roomId, userDetails.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/rooms/{roomId}/leave")
     public ResponseEntity<Void> leaveChatRoom(
             @PathVariable Long roomId,
